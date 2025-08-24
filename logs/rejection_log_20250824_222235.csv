@@ -1,0 +1,4 @@
+record_id,source_system,original_data,rejection_reason,rejection_details,severity,timestamp,processing_stage,suggested_fix,retry_count
+A123,alpha,"{'claim_id': 'A123', 'patient_id': '', 'status': 'denied'}",missing_required_field,Patient ID is missing,high,2025-08-24T22:22:35.130938,validation,Provide valid patient ID,0
+B987,beta,"{'id': 'B987', 'date': 'invalid-date', 'status': 'denied'}",invalid_date_format,Date format is invalid,medium,2025-08-24T22:22:35.131502,normalization,Use ISO date format (YYYY-MM-DD),0
+C456,alpha,"{'claim_id': 'C456', 'patient_id': 'P999', 'status': 'unknown'}",data_validation_failed,Status value 'unknown' is not valid,medium,2025-08-24T22:22:35.131821,validation,Use valid status values: 'approved' or 'denied',0

@@ -1,0 +1,74 @@
+{
+  "export_timestamp": "2025-08-24T22:22:35.134154",
+  "total_rejected_records": 3,
+  "rejection_statistics": {
+    "total_rejections": 3,
+    "rejections_by_reason": {
+      "missing_required_field": 1,
+      "invalid_date_format": 1,
+      "data_validation_failed": 1
+    },
+    "rejections_by_severity": {
+      "high": 1,
+      "medium": 2
+    },
+    "rejections_by_source": {
+      "alpha": 2,
+      "beta": 1
+    },
+    "rejections_by_stage": {
+      "validation": 2,
+      "normalization": 1
+    }
+  },
+  "rejected_records": [
+    {
+      "record_id": "A123",
+      "source_system": "alpha",
+      "original_data": {
+        "claim_id": "A123",
+        "patient_id": "",
+        "status": "denied"
+      },
+      "rejection_reason": "missing_required_field",
+      "rejection_details": "Patient ID is missing",
+      "severity": "high",
+      "timestamp": "2025-08-24T22:22:35.130938",
+      "processing_stage": "validation",
+      "suggested_fix": "Provide valid patient ID",
+      "retry_count": 0
+    },
+    {
+      "record_id": "B987",
+      "source_system": "beta",
+      "original_data": {
+        "id": "B987",
+        "date": "invalid-date",
+        "status": "denied"
+      },
+      "rejection_reason": "invalid_date_format",
+      "rejection_details": "Date format is invalid",
+      "severity": "medium",
+      "timestamp": "2025-08-24T22:22:35.131502",
+      "processing_stage": "normalization",
+      "suggested_fix": "Use ISO date format (YYYY-MM-DD)",
+      "retry_count": 0
+    },
+    {
+      "record_id": "C456",
+      "source_system": "alpha",
+      "original_data": {
+        "claim_id": "C456",
+        "patient_id": "P999",
+        "status": "unknown"
+      },
+      "rejection_reason": "data_validation_failed",
+      "rejection_details": "Status value 'unknown' is not valid",
+      "severity": "medium",
+      "timestamp": "2025-08-24T22:22:35.131821",
+      "processing_stage": "validation",
+      "suggested_fix": "Use valid status values: 'approved' or 'denied'",
+      "retry_count": 0
+    }
+  ]
+}

@@ -422,7 +422,7 @@ class MockLLMClassifier:
 
 def main():
     """Demonstrate the LLM classifier functionality."""
-    print("🤖 Mock LLM Classifier for Denial Reason Classification")
+    print("Mock LLM Classifier for Denial Reason Classification")
     print("=" * 60)
     
     # Initialize classifier
@@ -440,9 +440,9 @@ def main():
         "Prior auth required"
     ]
     
-    print("\n📋 Classification Results:")
+    print("\nClassification Results:")
     for test_case in test_cases:
-        print(f"\n🔍 Analyzing: '{test_case}'")
+        print(f"\nAnalyzing: '{test_case}'")
         
         # Simulate claim context
         context = {
@@ -459,7 +459,7 @@ def main():
         print(f"   Actions: {', '.join(result.suggested_actions[:2])}...")
     
     # Display statistics
-    print(f"\n📊 Classification Statistics:")
+    print(f"\nClassification Statistics:")
     stats = classifier.get_classification_stats()
     for key, value in stats.items():
         if isinstance(value, dict):

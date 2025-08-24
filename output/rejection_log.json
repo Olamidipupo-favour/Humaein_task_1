@@ -1,5 +1,5 @@
 {
-  "export_timestamp": "2025-08-24T22:15:47.478236",
+  "export_timestamp": "2025-08-24T22:23:28.193951",
   "total_rejected_records": 1,
   "rejection_statistics": {
     "total_rejections": 1,
@@ -23,4 +23,13 @@
       "original_data": {
         "count": 1
       },
-      "rejection_reason": 
+      "rejection_reason": "data_validation_failed",
+      "rejection_details": "Claims rejected due to non-retryable denial reasons",
+      "severity": "medium",
+      "timestamp": "2025-08-24T22:23:28.190116",
+      "processing_stage": "resubmission_analysis",
+      "suggested_fix": "Manual review required for these claims",
+      "retry_count": 0
+    }
+  ]
+}
