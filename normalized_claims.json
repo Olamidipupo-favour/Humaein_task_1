@@ -1,0 +1,29 @@
+[
+  {
+    "claim_id": "B987",
+    "patient_id": "P010",
+    "procedure_code": "99213",
+    "denial_reason": "Incorrect provider type",
+    "status": "denied",
+    "submitted_at": "2025-07-03T00:00:00",
+    "source_system": "beta"
+  },
+  {
+    "claim_id": "B988",
+    "patient_id": "P011",
+    "procedure_code": "99214",
+    "denial_reason": "Missing modifier",
+    "status": "denied",
+    "submitted_at": "2025-07-09T00:00:00",
+    "source_system": "beta"
+  },
+  {
+    "claim_id": "B989",
+    "patient_id": "P012",
+    "procedure_code": "99215",
+    "denial_reason": null,
+    "status": "approved",
+    "submitted_at": "2025-07-10T00:00:00",
+    "source_system": "beta"
+  }
+]
