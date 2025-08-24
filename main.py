@@ -133,8 +133,11 @@ class ResubmissionAnalyzer:
                 return "retryable", f"LLM classification: {classification_result.reasoning}"
             elif classification_result.classification == ClassificationResult.NON_RETRYABLE:
                 return "non_retryable", f"LLM classification: {classification_result.reasoning}"
+            elif classification_result.classification == ClassificationResult.AMBIGUOUS:
+                # For ambiguous cases, use fallback classification
+                return self._fallback_classification(reason)
             else:
-                # Default to retryable for ambiguous cases
+                # Default to retryable for any other cases
                 return "retryable", f"LLM classification (default): {classification_result.reasoning}"
                 
         except Exception as e:
