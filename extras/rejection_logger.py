@@ -157,12 +157,12 @@ class RejectionLogger:
             output_path = self.log_dir / f"rejection_log_{timestamp}.json"
         
         try:
-            # Prepare export data
+            # Prepare export data with enum values converted to strings
             export_data = {
                 "export_timestamp": datetime.now().isoformat(),
                 "total_rejected_records": len(self.rejected_records),
                 "rejection_statistics": self.rejection_stats,
-                "rejected_records": [asdict(record) for record in self.rejected_records]
+                "rejected_records": [self._record_to_dict(record) for record in self.rejected_records]
             }
             
             # Export to JSON
@@ -175,6 +175,14 @@ class RejectionLogger:
         except Exception as e:
             self.logger.error(f"Error exporting rejection log: {str(e)}")
             raise
+    
+    def _record_to_dict(self, record: RejectedRecord) -> Dict[str, Any]:
+        """Convert a RejectedRecord to a JSON-serializable dictionary."""
+        record_dict = asdict(record)
+        # Convert enum values to strings for JSON serialization
+        record_dict["rejection_reason"] = record.rejection_reason.value
+        record_dict["severity"] = record.severity.value
+        return record_dict
     
     def export_rejection_csv(self, output_path: Optional[Path] = None) -> Path:
         """
@@ -209,9 +217,7 @@ class RejectionLogger:
                     
                     for record in self.rejected_records:
                         # Convert enum values to strings for CSV
-                        record_dict = asdict(record)
-                        record_dict["rejection_reason"] = record.rejection_reason.value
-                        record_dict["severity"] = record.severity.value
+                        record_dict = self._record_to_dict(record)
                         writer.writerow(record_dict)
             
             self.logger.info(f"Exported rejection CSV to {output_path}")
@@ -227,7 +233,7 @@ class RejectionLogger:
             "total_rejections": len(self.rejected_records),
             "rejection_rate": self._calculate_rejection_rate(),
             "statistics": self.rejection_stats.copy(),
-            "recent_rejections": self._get_recent_rejections(10)
+            "recent_rejections": [self._record_to_dict(record) for record in self._get_recent_rejections(10)]
         }
     
     def _calculate_rejection_rate(self) -> float:
@@ -236,10 +242,10 @@ class RejectionLogger:
         # For now, return a placeholder
         return 0.0
     
-    def _get_recent_rejections(self, count: int) -> List[Dict[str, Any]]:
+    def _get_recent_rejections(self, count: int) -> List[RejectedRecord]:
         """Get the most recent rejections."""
         recent = sorted(self.rejected_records, key=lambda x: x.timestamp, reverse=True)[:count]
-        return [asdict(record) for record in recent]
+        return recent
     
     def get_rejections_by_reason(self, reason: RejectionReason) -> List[RejectedRecord]:
         """Get all rejections for a specific reason."""
@@ -382,14 +388,14 @@ class DataQualityAnalyzer:
 
 def main():
     """Demonstrate the rejection logger functionality."""
-    print("📋 Rejection Logger for EMR Data Processing")
+    print("Rejection Logger for EMR Data Processing")
     print("=" * 50)
     
     # Initialize rejection logger
     rejection_logger = RejectionLogger()
     
     # Simulate some rejections
-    print("\n🔍 Logging sample rejections...")
+    print("\nLogging sample rejections...")
     
     # Sample rejection 1
     rejection_logger.log_rejection(
@@ -428,7 +434,7 @@ def main():
     )
     
     # Display rejection summary
-    print("\n📊 Rejection Summary:")
+    print("\nRejection Summary:")
     summary = rejection_logger.get_rejection_summary()
     print(f"   Total rejections: {summary['total_rejections']}")
     
@@ -441,7 +447,7 @@ def main():
         print(f"     {severity}: {count}")
     
     # Export rejection logs
-    print("\n💾 Exporting rejection logs...")
+    print("\nExporting rejection logs...")
     json_path = rejection_logger.export_rejection_log()
     csv_path = rejection_logger.export_rejection_csv()
     
@@ -449,7 +455,7 @@ def main():
     print(f"   CSV log: {csv_path}")
     
     # Data quality analysis
-    print("\n🔬 Data Quality Analysis:")
+    print("\nData Quality Analysis:")
     analyzer = DataQualityAnalyzer(rejection_logger)
     quality_analysis = analyzer.analyze_data_quality()
     
