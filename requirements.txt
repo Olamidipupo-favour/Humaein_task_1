@@ -1,6 +1,4 @@
 pandas
 pathlib2
 fastapi
-pandas
-fastapi
 uvicorn

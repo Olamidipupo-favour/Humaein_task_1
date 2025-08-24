@@ -1,0 +1,26 @@
+{
+  "export_timestamp": "2025-08-24T22:15:47.478236",
+  "total_rejected_records": 1,
+  "rejection_statistics": {
+    "total_rejections": 1,
+    "rejections_by_reason": {
+      "data_validation_failed": 1
+    },
+    "rejections_by_severity": {
+      "medium": 1
+    },
+    "rejections_by_source": {
+      "various": 1
+    },
+    "rejections_by_stage": {
+      "resubmission_analysis": 1
+    }
+  },
+  "rejected_records": [
+    {
+      "record_id": "multiple",
+      "source_system": "various",
+      "original_data": {
+        "count": 1
+      },
+      "rejection_reason": 

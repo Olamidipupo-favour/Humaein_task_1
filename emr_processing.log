@@ -1,0 +1,27 @@
+2025-08-24 22:15:47,423 - INFO - Starting EMR data processing pipeline
+2025-08-24 22:15:47,423 - INFO - Step 1: Processing and normalizing EMR data sources
+2025-08-24 22:15:47,444 - WARNING - Missing field 'status' in alpha record: {'claim_id': 'A123', 'patient_id': 'P001', 'procedure_code': '99213', 'denial_reason': 'Missing modifier', 'submitted_at': '2025-07-01', 'status ': 'denied  '}
+2025-08-24 22:15:47,444 - WARNING - Skipping invalid record at row 2
+2025-08-24 22:15:47,445 - WARNING - Missing field 'status' in alpha record: {'claim_id': 'A124', 'patient_id': 'P002', 'procedure_code': '99214', 'denial_reason': 'Incorrect NPI', 'submitted_at': '2025-07-10', 'status ': 'denied  '}
+2025-08-24 22:15:47,445 - WARNING - Skipping invalid record at row 3
+2025-08-24 22:15:47,445 - WARNING - Missing field 'status' in alpha record: {'claim_id': 'A125', 'patient_id': '', 'procedure_code': '99215', 'denial_reason': 'Authorization expired', 'submitted_at': '2025-07-05', 'status ': 'denied  '}
+2025-08-24 22:15:47,446 - WARNING - Skipping invalid record at row 4
+2025-08-24 22:15:47,446 - WARNING - Missing field 'status' in alpha record: {'claim_id': 'A126', 'patient_id': 'P003', 'procedure_code': '99381', 'denial_reason': 'None', 'submitted_at': '2025-07-15', 'status ': 'approved  '}
+2025-08-24 22:15:47,447 - WARNING - Skipping invalid record at row 5
+2025-08-24 22:15:47,447 - WARNING - Missing field 'status' in alpha record: {'claim_id': 'A127', 'patient_id': 'P004', 'procedure_code': '99401', 'denial_reason': 'Prior auth required', 'submitted_at': '2025-07-20', 'status ': 'denied'}
+2025-08-24 22:15:47,448 - WARNING - Skipping invalid record at row 6
+2025-08-24 22:15:47,448 - INFO - Successfully processed 0 records from sample_data\emr_alpha.csv
+2025-08-24 22:15:47,469 - WARNING - Missing required field 'patient_id' in beta data: {'claim_id': 'B990', 'patient_id': None, 'procedure_code': '99401', 'denial_reason': 'incorrect procedure', 'submitted_at': '2025-07-01T00:00:00', 'status': 'denied'}
+2025-08-24 22:15:47,469 - WARNING - Skipping invalid record at position 4
+2025-08-24 22:15:47,470 - INFO - Successfully processed 3 records from sample_data\emr_beta.json
+2025-08-24 22:15:47,470 - INFO - Total records processed: 3
+2025-08-24 22:15:47,470 - INFO - Data cleaning phase completed - no rejections loged
+2025-08-24 22:15:47,472 - INFO - Exported 3 records to output\normalized_claims.json
+2025-08-24 22:15:47,473 - INFO - Step 2: Analyzing claims for resubmission eligibility
+2025-08-24 22:15:47,473 - WARNING - Record multiple rejected: data_validation_failed - Claims rejected due to non-retryable denial reasons
+2025-08-24 22:15:47,474 - INFO - Step 3: Generating output files and reports
+2025-08-24 22:15:47,475 - INFO - Exported 1 resubmission candidates to output\resubmission_candidates.json
+2025-08-24 22:15:47,477 - INFO - Generated processing report: output\processing_report.json
+2025-08-24 22:15:47,479 - ERROR - Error exporting rejection log: Object of type RejectionReason is not JSON serializable
+2025-08-24 22:15:47,480 - ERROR - Pipeline execution failed: Object of type RejectionReason is not JSON serializable
+2025-08-24 22:15:47,480 - ERROR - Main execution failed: Object of type RejectionReason is not JSON serializable

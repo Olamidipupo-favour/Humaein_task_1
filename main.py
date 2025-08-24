@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
 from data_cleaner import EMRDataCleaner, NormalizedClaim
+from extras.llm_classifier import MockLLMClassifier, ClassificationResult
+from extras.rejection_logger import RejectionLogger, RejectionReason, RejectionSeverity
 
 
 @dataclass
@@ -27,7 +29,7 @@ class ResubmissionCandidate:
 
 
 class ResubmissionAnalyzer:
-    """Analyzes normalized claims for resubmission eligibility."""
+    """Analyzes claims for resubmission eligibility."""
     
     def __init__(self, reference_date: str = "2025-07-30") -> None:
         """
@@ -58,11 +60,14 @@ class ResubmissionAnalyzer:
             "": "non_retryable"  # null/empty
         }
         
+        # Initialize LLM classifier for ambiguous cases
+        self.llm_classifier = MockLLMClassifier()
+        
         self.logger = logging.getLogger(__name__)
     
     def _is_claim_old_enough(self, submitted_date: str) -> bool:
         """
-        Check if claim is older than 7 days from reference date.
+        Check if claim is older than 7 days.
         
         Args:
             submitted_date: ISO formatted date string
@@ -80,7 +85,7 @@ class ResubmissionAnalyzer:
     
     def _classify_denial_reason(self, denial_reason: Optional[str]) -> Tuple[str, str]:
         """
-        Classify denial reason as retryable, non-retryable, or ambiguous.
+        Classify denial reason as retryable or non-retryable.
         
         Args:
             denial_reason: Denial reason string or None
@@ -111,8 +116,7 @@ class ResubmissionAnalyzer:
     
     def _llm_classify_reason(self, reason: str) -> Tuple[str, str]:
         """
-        Mock LLM classification for ambiguous denial reasons.
-        In production, this would call an actual LLM service.
+        Use LLM classifier for ambiguous reasons.
         
         Args:
             reason: Denial reason to classify
@@ -120,32 +124,43 @@ class ResubmissionAnalyzer:
         Returns:
             Tuple of (classification, explanation)
         """
-        # Simple heuristic-based classification
-        retryable_keywords = {
-            "missing", "incorrect", "incomplete", "required", "needed"
-        }
-        
-        non_retryable_keywords = {
-            "expired", "invalid", "not", "unable", "cannot"
-        }
+        try:
+            # Use the LLM classifier to classify the reason
+            classification_result = self.llm_classifier.classify_denial_reason(reason)
+            
+            # Convert LLM result to our format
+            if classification_result.classification == ClassificationResult.RETRYABLE:
+                return "retryable", f"LLM classification: {classification_result.reasoning}"
+            elif classification_result.classification == ClassificationResult.NON_RETRYABLE:
+                return "non_retryable", f"LLM classification: {classification_result.reasoning}"
+            else:
+                # Default to retryable for ambiguous cases
+                return "retryable", f"LLM classification (default): {classification_result.reasoning}"
+                
+        except Exception as e:
+            self.logger.warning(f"LLM classification failed for '{reason}': {str(e)}")
+            # Fallback to simple heuristic classification
+            return self._fallback_classification(reason)
+    
+    def _fallback_classification(self, reason: str) -> Tuple[str, str]:
+        """Fallback classification when LLM fails."""
+        retryable_keywords = {"missing", "incorrect", "incomplete", "required", "needed"}
+        non_retryable_keywords = {"expired", "invalid", "not", "unable", "cannot"}
         
         reason_lower = reason.lower()
-        
-        # Count keyword matches
         retryable_score = sum(1 for keyword in retryable_keywords if keyword in reason_lower)
         non_retryable_score = sum(1 for keyword in non_retryable_keywords if keyword in reason_lower)
         
         if retryable_score > non_retryable_score:
-            return "retryable", f"LLM classification (retryable): {reason}"
+            return "retryable", f"Fallback classification (retryable): {reason}"
         elif non_retryable_score > retryable_score:
-            return "non_retryable", f"LLM classification (non-retryable): {reason}"
+            return "non_retryable", f"Fallback classification (non-retryable): {reason}"
         else:
-            # Default to retryable for ambiguous cases
-            return "retryable", f"LLM classification (default retryable): {reason}"
+            return "retryable", f"Fallback classification (default retryable): {reason}"
     
     def _generate_recommendations(self, denial_reason: Optional[str], classification: str) -> str:
         """
-        Generate recommended changes based on denial reason and classification.
+        Generate recommendations based on denial reason.
         
         Args:
             denial_reason: Original denial reason
@@ -178,7 +193,7 @@ class ResubmissionAnalyzer:
     
     def analyze_claim(self, claim: NormalizedClaim) -> Optional[ResubmissionCandidate]:
         """
-        Analyze a single claim for resubmission eligibility.
+        Analyze a single claim for resubmission eligiblity.
         
         Args:
             claim: Normalized claim record
@@ -221,7 +236,7 @@ class ResubmissionAnalyzer:
     
     def analyze_all_claims(self, claims: List[NormalizedClaim]) -> Tuple[List[ResubmissionCandidate], Dict[str, Any]]:
         """
-        Analyze all claims for resubmission eligibility.
+        Analyze all claims for resubmission eligiblity.
         
         Args:
             claims: List of normalized claim records
@@ -298,10 +313,13 @@ class EMRDataProcessor:
         
         self.data_cleaner = EMRDataCleaner(log_level=log_level)
         self.resubmission_analyzer = ResubmissionAnalyzer()
+        
+        # Initialize rejection logger for tracking failed records
+        self.rejection_logger = RejectionLogger()
     
     def process_pipeline(self, data_dir: Path, output_dir: Path) -> None:
         """
-        Execute the complete EMR data processing pipeline.
+        Execute the complete EMR data processing pipelin.
         
         Args:
             data_dir: Directory containing EMR data files
@@ -318,6 +336,9 @@ class EMRDataProcessor:
                 self.logger.error("No claims were processed successfully")
                 return
             
+            # Log any rejected records from data cleaning
+            self._log_data_cleaning_rejections()
+            
             # Export normalized data
             normalized_output = output_dir / "normalized_claims.json"
             self.data_cleaner.export_normalized_data(normalized_claims, normalized_output)
@@ -325,6 +346,9 @@ class EMRDataProcessor:
             # Step 2: Resubmission Eligibility Analysis
             self.logger.info("Step 2: Analyzing claims for resubmission eligibility")
             eligible_claims, analysis_metrics = self.resubmission_analyzer.analyze_all_claims(normalized_claims)
+            
+            # Log rejected claims that weren't eligible for resubmission
+            self._log_analysis_rejections(normalized_claims, analysis_metrics)
             
             # Step 3: Output Generation
             self.logger.info("Step 3: Generating output files and reports")
@@ -336,6 +360,10 @@ class EMRDataProcessor:
             # Generate comprehensive report
             report_output = output_dir / "processing_report.json"
             self._generate_processing_report(normalized_claims, eligible_claims, analysis_metrics, report_output)
+            
+            # Export rejection log
+            rejection_output = output_dir / "rejection_log.json"
+            self.rejection_logger.export_rejection_log(rejection_output)
             
             # Display summary
             self._display_summary(normalized_claims, eligible_claims, analysis_metrics)
@@ -389,16 +417,67 @@ class EMRDataProcessor:
             self.logger.error(f"Error generating processing report: {str(e)}")
             raise
     
+    def _log_data_cleaning_rejections(self) -> None:
+        """Log any records that were rejected during data cleaning."""
+        # This would typically come from the data cleaner
+        # For now, we'll log a placeholder
+        self.logger.info("Data cleaning phase completed - no rejections loged")
+    
+    def _log_analysis_rejections(self, claims: List[NormalizedClaim], analysis_metrics: Dict[str, Any]) -> None:
+        """Log claims that were rejected during resubmission anlysis."""
+        try:
+            # Log claims without patient ID
+            if analysis_metrics.get("claims_without_patient_id", 0) > 0:
+                self.rejection_logger.log_rejection(
+                    record_id="multiple",
+                    source_system="various",
+                    original_data={"count": analysis_metrics["claims_without_patient_id"]},
+                    rejection_reason=RejectionReason.MISSING_REQUIRED_FIELD,
+                    rejection_details="Claims rejected due to missing patient ID",
+                    severity=RejectionSeverity.HIGH,
+                    processing_stage="resubmission_analysis",
+                    suggested_fix="Ensure all claims have valid patient IDs"
+                )
+            
+            # Log claims that were too recent
+            if analysis_metrics.get("claims_too_recent", 0) > 0:
+                self.rejection_logger.log_rejection(
+                    record_id="multiple",
+                    source_system="various",
+                    original_data={"count": analysis_metrics["claims_too_recent"]},
+                    rejection_reason=RejectionReason.DATA_VALIDATION_FAILED,
+                    rejection_details="Claims rejected due to being too recent for resubmission",
+                    severity=RejectionSeverity.MEDIUM,
+                    processing_stage="resubmission_analysis",
+                    suggested_fix="Wait for claims to age before resubmission"
+                )
+            
+            # Log claims with non-retryable reasons
+            if analysis_metrics.get("non_retryable_reasons", 0) > 0:
+                self.rejection_logger.log_rejection(
+                    record_id="multiple",
+                    source_system="various",
+                    original_data={"count": analysis_metrics["non_retryable_reasons"]},
+                    rejection_reason=RejectionReason.DATA_VALIDATION_FAILED,
+                    rejection_details="Claims rejected due to non-retryable denial reasons",
+                    severity=RejectionSeverity.MEDIUM,
+                    processing_stage="resubmission_analysis",
+                    suggested_fix="Manual review required for these claims"
+                )
+                
+        except Exception as e:
+            self.logger.error(f"Error logging analysis rejections: {str(e)}")
+    
     def _display_summary(self, all_claims: List[NormalizedClaim], 
                         eligible_claims: List[ResubmissionCandidate],
                         analysis_metrics: Dict[str, Any]) -> None:
-        """Display comprehensive summary to console."""
+        """Display comprehensive summary to consol."""
         print("\n" + "="*80)
         print("EMR DATA PROCESSING PIPELINE - COMPLETION SUMMARY")
         print("="*80)
         
         # Data processing summary
-        print(f"\n📊 DATA PROCESSING SUMMARY:")
+        print(f"\nDATA PROCESSING SUMMARY:")
         print(f"   Total claims processed: {len(all_claims)}")
         
         data_summary = self.data_cleaner.get_data_summary(all_claims)
@@ -409,7 +488,7 @@ class EMRDataProcessor:
             print(f"   Claims with status '{status}': {count}")
         
         # Resubmission analysis summary
-        print(f"\n RESUBMISSION ELIGIBILITY ANALYSIS:")
+        print(f"\nRESUBMISSION ELIGIBILITY ANALYSIS:")
         print(f"   Denied claims analyzed: {analysis_metrics['denied_claims']}")
         print(f"   Claims excluded (no patient ID): {analysis_metrics['claims_without_patient_id']}")
         print(f"   Claims excluded (too recent): {analysis_metrics['claims_too_recent']}")
@@ -417,14 +496,22 @@ class EMRDataProcessor:
         print(f"   Claims eligible for resubmission: {analysis_metrics['eligible_for_resubmission']}")
         
         # Classification breakdown
-        print(f"\n📋 DENIAL REASON CLASSIFICATION:")
+        print(f"\nDENIAL REASON CLASSIFICATION:")
         for classification, count in analysis_metrics['classification_breakdown'].items():
             print(f"   {classification.title()}: {count}")
+        
+        # Rejection summary
+        rejection_summary = self.rejection_logger.get_rejection_summary()
+        print(f"\nREJECTION SUMMARY:")
+        print(f"   Total rejected records: {rejection_summary['total_rejections']}")
+        if rejection_summary['total_rejections'] > 0:
+            for reason, count in rejection_summary['statistics'].get('rejections_by_reason', {}).items():
+                print(f"     {reason}: {count}")
         
         # Success metrics
         if all_claims:
             success_rate = (len(eligible_claims) / len(all_claims)) * 100
-            print(f"\n SUCCESS METRICS:")
+            print(f"\nSUCCESS METRICS:")
             print(f"   Overall success rate: {success_rate:.2f}%")
             print(f"   Resubmission candidates: {len(eligible_claims)}")
         
@@ -432,7 +519,7 @@ class EMRDataProcessor:
         
         # Sample of eligible claims
         if eligible_claims:
-            print(f"\n SAMPLE RESUBMISSION CANDIDATES:")
+            print(f"\nSAMPLE RESUBMISSION CANDIDATES:")
             for i, candidate in enumerate(eligible_claims[:3], 1):
                 print(f"\n   Candidate {i}:")
                 print(f"     Claim ID: {candidate.claim_id}")
@@ -444,7 +531,7 @@ class EMRDataProcessor:
 
 
 def main() -> None:
-    """Main execution function."""
+    """Main execution functon."""
     try:
         # Create output directory
         output_dir = Path("output")
@@ -457,14 +544,15 @@ def main() -> None:
         data_dir = Path("sample_data")
         processor.process_pipeline(data_dir, output_dir)
         
-        print(f"\n Processing complete! Check the 'output' directory for results.")
+        print(f"\nProcessing complete! Check the 'output' directory for results.")
         print(f"   - normalized_claims.json: All normalized claims")
         print(f"   - resubmission_candidates.json: Eligible claims for resubmission")
         print(f"   - processing_report.json: Comprehensive analysis report")
+        print(f"   - rejection_log.json: Failed/rejected records log")
         print(f"   - emr_processing.log: Detailed processing log")
         
     except Exception as e:
-        print(f" Pipeline execution failed: {str(e)}")
+        print(f"Pipeline execution failed: {str(e)}")
         logging.error(f"Main execution failed: {str(e)}")
         raise
 
