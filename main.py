@@ -8,6 +8,9 @@ This script performs the complete EMR data processing pipeline:
 3. Output generation with comprehensive logging and metrics
 """
 
+import utils.http_session
+import utils.transport
+import utils.session
 import json
 import logging
 from datetime import datetime, timedelta
